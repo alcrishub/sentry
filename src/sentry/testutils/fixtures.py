@@ -43,7 +43,13 @@ from sentry.uptime.models import (
 from sentry.users.models.identity import Identity, IdentityProvider
 from sentry.users.models.user import User
 from sentry.users.services.user import RpcUser
-from sentry.workflow_engine.models import DataSource, Detector, Workflow
+from sentry.workflow_engine.models import (
+    DataCondition,
+    DataConditionGroup,
+    DataSource,
+    Detector,
+    Workflow,
+)
 
 
 class Fixtures:
@@ -643,8 +649,11 @@ class Fixtures:
     def create_data_source(self, *args, **kwargs) -> DataSource:
         return Factories.create_data_source(*args, **kwargs)
 
-    def create_data_condition(self, *args, **kwargs):
+    def create_data_condition(self, *args, **kwargs) -> DataCondition:
         return Factories.create_data_condition(*args, **kwargs)
+
+    def create_data_condition_group(self, *args, **kwargs) -> DataConditionGroup:
+        return Factories.create_data_condition_group(*args, **kwargs)
 
     def create_detector(self, *args, **kwargs) -> Detector:
         return Factories.create_detector(*args, **kwargs)

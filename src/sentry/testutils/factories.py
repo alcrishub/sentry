@@ -172,6 +172,7 @@ from sentry.utils import loremipsum
 from sentry.utils.performance_issues.performance_problem import PerformanceProblem
 from sentry.workflow_engine.models import (
     DataCondition,
+    DataConditionGroup,
     DataSource,
     DataSourceDetector,
     Detector,
@@ -2080,6 +2081,13 @@ class Factories:
         **kwargs,
     ) -> DataCondition:
         return DataCondition.objects.create(**kwargs)
+
+    @staticmethod
+    @assume_test_silo_mode(SiloMode.REGION)
+    def create_data_condition_group(
+        **kwargs,
+    ) -> DataConditionGroup:
+        return DataConditionGroup.objects.create(**kwargs)
 
     @staticmethod
     @assume_test_silo_mode(SiloMode.REGION)
