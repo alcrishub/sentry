@@ -853,6 +853,13 @@
     "uptime.uptimesubscription"
   ],
   "uptime.uptimesubscription": [],
+  "workflow_engine.datacondition": [
+    "workflow_engine.dataconditiongroup"
+  ],
+  "workflow_engine.dataconditiongroup": [
+    "workflow_engine.detector",
+    "workflow_engine.workflowaction"
+  ],
   "workflow_engine.datasource": [
     "sentry.organization"
   ],

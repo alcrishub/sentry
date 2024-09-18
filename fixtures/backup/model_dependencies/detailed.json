@@ -6203,6 +6203,47 @@
       ]
     ]
   },
+  "workflow_engine.datacondition": {
+    "dangling": true,
+    "foreign_keys": {
+      "condition_group": {
+        "kind": "DefaultForeignKey",
+        "model": "workflow_engine.dataconditiongroup",
+        "nullable": false
+      }
+    },
+    "model": "workflow_engine.datacondition",
+    "relocation_dependencies": [],
+    "relocation_scope": "Organization",
+    "silos": [
+      "Region"
+    ],
+    "table_name": "workflow_engine_datacondition",
+    "uniques": []
+  },
+  "workflow_engine.dataconditiongroup": {
+    "dangling": true,
+    "foreign_keys": {
+      "detector": {
+        "kind": "DefaultForeignKey",
+        "model": "workflow_engine.detector",
+        "nullable": true
+      },
+      "workflow_action": {
+        "kind": "DefaultForeignKey",
+        "model": "workflow_engine.workflowaction",
+        "nullable": true
+      }
+    },
+    "model": "workflow_engine.dataconditiongroup",
+    "relocation_dependencies": [],
+    "relocation_scope": "Organization",
+    "silos": [
+      "Region"
+    ],
+    "table_name": "workflow_engine_dataconditiongroup",
+    "uniques": []
+  },
   "workflow_engine.datasource": {
     "dangling": false,
     "foreign_keys": {
