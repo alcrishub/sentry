@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from datetime import datetime, timedelta
 from time import sleep, time
 from typing import Any
 from unittest import mock
@@ -201,25 +202,11 @@ class DeleteGroupTest(TestCase, SnubaTestCase):
 
 class DeleteIssuePlatformTest(TestCase, SnubaTestCase, OccurrenceTestMixin):
     def test_issue_platform(self):
-        import datetime
-
         now = datetime.now()
         # Reusing the start and end value helps the Snuba query to use the cache if all other parameters are the same
-        # start = now - timedelta(days=1)
-        # end = now + timedelta(days=1)
+        start = now - timedelta(days=1)
+        end = now + timedelta(days=1)
 
-        # def query_issue_platform_dataset(occurrence_ids: Sequence[str]) -> Any:
-        #     # One event in the Issue Platform dataset
-        #     return snuba.query(
-        #         dataset=Dataset.IssuePlatform,
-        #         aggregations=[],
-        #         # conditions={"group": [self.project.id]},
-        #         filter_keys={"project_id": [self.project.id]},
-        #         start=start,
-        #         end=end,
-        #         referrer="testing.test",
-        #         tenant_ids={"referrer": "testing.test", "organization_id": self.organization.id},
-        #     )
         def query_issue_platform_dataset(occurrence_ids: Sequence[str]) -> Any:
             proj_col = Column("project_id")
             query = Query(
@@ -227,7 +214,8 @@ class DeleteIssuePlatformTest(TestCase, SnubaTestCase, OccurrenceTestMixin):
                 select=[Column("id"), Column("occurrence_id")],
                 where=[
                     Condition(proj_col, Op.IN, Function("tuple", [self.project.id])),
-                    Condition(Column("timestamp"), Op.GTE, now),
+                    Condition(Column("timestamp"), Op.GTE, start),
+                    Condition(Column("timestamp"), Op.LT, end),
                 ],
             )
             referrer = "testing.test"
