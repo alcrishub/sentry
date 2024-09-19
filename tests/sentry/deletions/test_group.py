@@ -1,11 +1,10 @@
 from collections.abc import Sequence
-from datetime import datetime, timedelta
 from time import sleep, time
 from typing import Any
 from unittest import mock
 from uuid import uuid4
 
-from snuba_sdk import Column, Condition, Op
+from snuba_sdk import Column, Condition, Entity, Function, Op, Query, Request
 
 from sentry import nodestore
 from sentry.deletions.defaults.group import EventDataDeletionTask
@@ -21,10 +20,10 @@ from sentry.models.grouphistory import GroupHistory, GroupHistoryStatus
 from sentry.models.groupmeta import GroupMeta
 from sentry.models.groupredirect import GroupRedirect
 from sentry.models.userreport import UserReport
-from sentry.snuba.dataset import Dataset
+from sentry.snuba.dataset import Dataset, EntityKey
 from sentry.testutils.cases import SnubaTestCase, TestCase
 from sentry.testutils.helpers.datetime import before_now, iso_format
-from sentry.utils import snuba
+from sentry.utils.snuba import raw_snql_query
 from tests.sentry.issues.test_utils import OccurrenceTestMixin
 
 
@@ -202,25 +201,44 @@ class DeleteGroupTest(TestCase, SnubaTestCase):
 
 class DeleteIssuePlatformTest(TestCase, SnubaTestCase, OccurrenceTestMixin):
     def test_issue_platform(self):
+        import datetime
+
         now = datetime.now()
         # Reusing the start and end value helps the Snuba query to use the cache if all other parameters are the same
-        start = now - timedelta(days=1)
-        end = now + timedelta(days=1)
+        # start = now - timedelta(days=1)
+        # end = now + timedelta(days=1)
 
+        # def query_issue_platform_dataset(occurrence_ids: Sequence[str]) -> Any:
+        #     # One event in the Issue Platform dataset
+        #     return snuba.query(
+        #         dataset=Dataset.IssuePlatform,
+        #         aggregations=[],
+        #         # conditions={"group": [self.project.id]},
+        #         filter_keys={"project_id": [self.project.id]},
+        #         start=start,
+        #         end=end,
+        #         referrer="testing.test",
+        #         tenant_ids={"referrer": "testing.test", "organization_id": self.organization.id},
+        #     )
         def query_issue_platform_dataset(occurrence_ids: Sequence[str]) -> Any:
-            # One event in the Issue Platform dataset
-            return snuba.query(
-                dataset=Dataset.IssuePlatform,
-                aggregations="",
-                conditions=[
-                    [Condition(Column("occurrence_id"), Op.IN, occurrence_ids)],
+            proj_col = Column("project_id")
+            query = Query(
+                match=Entity(EntityKey.IssuePlatform.value),
+                select=[Column("id"), Column("occurrence_id")],
+                where=[
+                    Condition(proj_col, Op.IN, Function("tuple", [self.project.id])),
+                    Condition(Column("timestamp"), Op.GTE, now),
                 ],
-                start=start,
-                end=end,
-                filter_keys={"project_id": [self.project.id]},
-                referrer="testing.test",
-                tenant_ids={"referrer": "testing.test", "organization_id": self.organization.id},
             )
+            referrer = "testing.test"
+            request = Request(
+                dataset=Dataset.IssuePlatform.value,
+                app_id=referrer,
+                query=query,
+                tenant_ids={"referrer": referrer, "organization_id": self.organization.id},
+            )
+            results = raw_snql_query(request, referrer=referrer)["data"]
+            return results
 
         event = self.store_event(data={}, project_id=self.project.id)
         issue_occurrence, group_info = self.process_occurrence(
