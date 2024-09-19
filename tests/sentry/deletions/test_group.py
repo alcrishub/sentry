@@ -1,7 +1,11 @@
+from collections.abc import Sequence
 from datetime import datetime, timedelta
 from time import sleep, time
+from typing import Any
 from unittest import mock
 from uuid import uuid4
+
+from snuba_sdk import Column, Condition, Op
 
 from sentry import nodestore
 from sentry.deletions.defaults.group import EventDataDeletionTask
@@ -198,21 +202,27 @@ class DeleteGroupTest(TestCase, SnubaTestCase):
 
 class DeleteIssuePlatformTest(TestCase, SnubaTestCase, OccurrenceTestMixin):
     def test_issue_platform(self):
-        def query_issue_platform_dataset():
-            now = datetime.now()
+        now = datetime.now()
+        # Reusing the start and end value helps the Snuba query to use the cache if all other parameters are the same
+        start = now - timedelta(days=1)
+        end = now + timedelta(days=1)
+
+        def query_issue_platform_dataset(occurrence_ids: Sequence[str]) -> Any:
             # One event in the Issue Platform dataset
             return snuba.query(
                 dataset=Dataset.IssuePlatform,
-                start=now - timedelta(days=1),
-                end=now + timedelta(days=1),
-                groupby=["project_id"],
+                aggregations="",
+                conditions=[
+                    [Condition(Column("occurrence_id"), Op.IN, occurrence_ids)],
+                ],
+                start=start,
+                end=end,
                 filter_keys={"project_id": [self.project.id]},
                 referrer="testing.test",
                 tenant_ids={"referrer": "testing.test", "organization_id": self.organization.id},
             )
 
         event = self.store_event(data={}, project_id=self.project.id)
-        assert query_issue_platform_dataset() == {}
         issue_occurrence, group_info = self.process_occurrence(
             event_id=event.event_id,
             project_id=self.project.id,
@@ -225,7 +235,7 @@ class DeleteIssuePlatformTest(TestCase, SnubaTestCase, OccurrenceTestMixin):
         )
         # There's a delay to inserting in Snuba
         sleep(1)
-        assert query_issue_platform_dataset() == {self.project.id: 1}
+        assert query_issue_platform_dataset([issue_occurrence.id]) == {self.project.id: 1}
         assert group_info is not None
         issue_platform_group = group_info.group
         assert event.group_id != issue_platform_group.id
