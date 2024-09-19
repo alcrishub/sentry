@@ -1,4 +1,5 @@
-from time import time
+from datetime import datetime, timedelta
+from time import sleep, time
 from unittest import mock
 from uuid import uuid4
 
@@ -16,8 +17,10 @@ from sentry.models.grouphistory import GroupHistory, GroupHistoryStatus
 from sentry.models.groupmeta import GroupMeta
 from sentry.models.groupredirect import GroupRedirect
 from sentry.models.userreport import UserReport
+from sentry.snuba.dataset import Dataset
 from sentry.testutils.cases import SnubaTestCase, TestCase
 from sentry.testutils.helpers.datetime import before_now, iso_format
+from sentry.utils import snuba
 from tests.sentry.issues.test_utils import OccurrenceTestMixin
 
 
@@ -195,7 +198,21 @@ class DeleteGroupTest(TestCase, SnubaTestCase):
 
 class DeleteIssuePlatformTest(TestCase, SnubaTestCase, OccurrenceTestMixin):
     def test_issue_platform(self):
+        def query_issue_platform_dataset():
+            now = datetime.now()
+            # One event in the Issue Platform dataset
+            return snuba.query(
+                dataset=Dataset.IssuePlatform,
+                start=now - timedelta(days=1),
+                end=now + timedelta(days=1),
+                groupby=["project_id"],
+                filter_keys={"project_id": [self.project.id]},
+                referrer="testing.test",
+                tenant_ids={"referrer": "testing.test", "organization_id": self.organization.id},
+            )
+
         event = self.store_event(data={}, project_id=self.project.id)
+        assert query_issue_platform_dataset() == {}
         issue_occurrence, group_info = self.process_occurrence(
             event_id=event.event_id,
             project_id=self.project.id,
@@ -206,6 +223,9 @@ class DeleteIssuePlatformTest(TestCase, SnubaTestCase, OccurrenceTestMixin):
                 "timestamp": before_now(minutes=1).isoformat(),
             },
         )
+        # There's a delay to inserting in Snuba
+        sleep(1)
+        assert query_issue_platform_dataset() == {self.project.id: 1}
         assert group_info is not None
         issue_platform_group = group_info.group
         assert event.group_id != issue_platform_group.id
@@ -223,3 +243,6 @@ class DeleteIssuePlatformTest(TestCase, SnubaTestCase, OccurrenceTestMixin):
         assert not Group.objects.filter(id=issue_platform_group.id).exists()
         node_id = Event.generate_node_id(issue_occurrence.project_id, issue_occurrence.id)
         assert not nodestore.backend.get(node_id)
+
+        # We have not yet added support to delete the event
+        assert query_issue_platform_dataset() == {self.project.id: 1}
